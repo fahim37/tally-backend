@@ -11,3 +11,7 @@ export { default as RecurringRule, FREQUENCIES } from './recurring.model.js';
 export { default as Receipt, RECEIPT_STATUSES } from './receipt.model.js';
 export { default as Insight, INSIGHT_KINDS } from './insight.model.js';
 export { default as RefreshToken } from './refreshToken.model.js';
+export {
+  default as AccountState,
+  ACCOUNT_STATE_SECTIONS,
+} from './accountState.model.js';
