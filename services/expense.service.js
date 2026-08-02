@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
+import { StatusCodes } from 'http-status-codes';
 import { Category, Expense, Tile, User } from '../models/index.js';
 import { diffInDays, todayLocalDate } from '../utils/date.js';
+import ApiError from '../utils/ApiError.js';
 import { seedCategories } from './bootstrap.service.js';
 
 const WRITE_CONCURRENCY = 25;
@@ -95,6 +97,7 @@ const loadTiles = async (user, tileIds) => {
 const upsertExpense = async (user, expense, category, tile) => {
   const values = {
     tile: tile ?? null,
+    clientTileId: expense.tileId ?? null,
     category,
     name: expense.name,
     note: expense.note ?? null,
@@ -111,6 +114,19 @@ const upsertExpense = async (user, expense, category, tile) => {
     deletedAt: expense.deletedAt ? new Date(expense.deletedAt) : null,
   };
 
+  const serverId = expense.clientId.match(/^server-([a-f\d]{24})$/i)?.[1];
+  if (serverId) {
+    const result = await Expense.updateOne(
+      { _id: serverId, user: user._id },
+      { $set: values },
+      { runValidators: true }
+    );
+    if (result.matchedCount === 0) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'That expense no longer exists');
+    }
+    return;
+  }
+
   const filter = { user: user._id, clientId: expense.clientId };
 
   try {
@@ -126,6 +142,51 @@ const upsertExpense = async (user, expense, category, tile) => {
     if (error?.code !== 11000) throw error;
     await Expense.updateOne(filter, { $set: values }, { runValidators: true });
   }
+};
+
+/** Full account snapshot for a newly signed-in device. */
+export const listExpenses = async (user) => {
+  const expenses = await Expense.find({ user: user._id })
+    .sort({ occurredAt: 1, _id: 1 })
+    .lean();
+
+  if (!expenses.length) return [];
+
+  const categoryIds = [...new Set(expenses.map((expense) => String(expense.category)))];
+  const tileIds = [
+    ...new Set(expenses.map((expense) => expense.tile && String(expense.tile)).filter(Boolean)),
+  ];
+  const [categories, tiles] = await Promise.all([
+    Category.find({ user: user._id, _id: { $in: categoryIds } }).select('_id slug').lean(),
+    tileIds.length
+      ? Tile.find({ user: user._id, _id: { $in: tileIds } }).select('_id seedKey').lean()
+      : [],
+  ]);
+  const categoryById = new Map(
+    categories.map((category) => [String(category._id), category.slug])
+  );
+  const tileById = new Map(tiles.map((tile) => [String(tile._id), tile.seedKey]));
+
+  return expenses.map((expense) => {
+    const seedKey = expense.tile ? tileById.get(String(expense.tile)) : null;
+    return {
+      id: expense.clientId ?? `server-${expense._id}`,
+      tileId: expense.clientTileId ?? (seedKey ? `tile-${seedKey}` : null),
+      categorySlug: categoryById.get(String(expense.category)) ?? 'other',
+      name: expense.name,
+      ...(expense.note ? { note: expense.note } : {}),
+      ...(expense.merchant ? { merchant: expense.merchant } : {}),
+      unitAmountMinor: expense.unitAmountMinor,
+      quantity: expense.quantity,
+      totalAmountMinor: expense.totalAmountMinor,
+      occurredAt: expense.occurredAt.toISOString(),
+      localDate: expense.localDate,
+      localMonth: expense.localMonth,
+      source: expense.source,
+      pendingSync: false,
+      deletedAt: expense.deletedAt?.toISOString() ?? null,
+    };
+  });
 };
 
 const recomputeAccountRollups = async (user) => {
@@ -226,4 +287,4 @@ export const syncExpenses = async (user, expenses) => {
   };
 };
 
-export default { syncExpenses };
+export default { listExpenses, syncExpenses };

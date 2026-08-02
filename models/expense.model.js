@@ -80,6 +80,11 @@ const expenseSchema = new Schema(
     // second row. Unique per user, sparse so server-created rows can omit it.
     clientId: { type: String, default: null },
 
+    // The frontend's tile id is stable across devices even when a local custom
+    // tile has no server Tile document yet. Keep it separately from `tile` so
+    // another device can attach downloaded expenses to the same pad tile.
+    clientTileId: { type: String, default: null, maxlength: 128 },
+
     // Soft delete drives the Undo affordance and the swipe-to-delete row;
     // every read filters on `deletedAt: null`.
     deletedAt: { type: Date, default: null },
