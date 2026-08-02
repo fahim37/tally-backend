@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { StatusCodes } from 'http-status-codes';
 
 import env from './config/env.js';
+import authRoutes from './routes/auth.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import notFound from './middlewares/notFound.js';
 import globalErrorHandler from './middlewares/globalErrorHandler.js';
@@ -28,9 +29,9 @@ app.use(cookieParser());
 
 if (!env.isProduction) app.use(morgan('dev'));
 
-// Blanket ceiling. The auth and AI routers get their own tighter limits when
-// they land — brute-forcing a password and burning Gemini quota both need
-// something stricter than this.
+// Blanket ceiling on traffic. The credential endpoints carry their own, much
+// tighter limiter in routes/auth.routes.js — brute-forcing a password needs
+// something stricter than this, and so will the AI routes when they land.
 app.use(
   '/api',
   rateLimit({
@@ -55,8 +56,9 @@ app.get('/health', (req, res) => {
 });
 
 // ── Routes ─────────────────────────────────────────────────────────────────
-// Feature routers (auth, tiles, expenses, dashboard, habits, insights,
+// The remaining feature routers (tiles, expenses, dashboard, habits, insights,
 // budgets, history, recurring) mount here once the models are signed off.
+app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 
 app.use(notFound);
