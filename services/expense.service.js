@@ -6,6 +6,12 @@ import ApiError from '../utils/ApiError.js';
 import { seedCategories } from './bootstrap.service.js';
 
 const WRITE_CONCURRENCY = 25;
+const LEGACY_TILE_BY_CATEGORY = {
+  cigarettes: 'tile-cig',
+  'food-drink': 'tile-food',
+  transport: 'tile-transport',
+  other: 'tile-extras',
+};
 
 const localSeedKey = (tileId) => {
   if (!tileId) return null;
@@ -169,10 +175,14 @@ export const listExpenses = async (user) => {
 
   return expenses.map((expense) => {
     const seedKey = expense.tile ? tileById.get(String(expense.tile)) : null;
+    const categorySlug = categoryById.get(String(expense.category)) ?? 'other';
+    const inferredTileId =
+      expense.source === 'tap' ? LEGACY_TILE_BY_CATEGORY[categorySlug] ?? null : null;
     return {
       id: expense.clientId ?? `server-${expense._id}`,
-      tileId: expense.clientTileId ?? (seedKey ? `tile-${seedKey}` : null),
-      categorySlug: categoryById.get(String(expense.category)) ?? 'other',
+      tileId:
+        expense.clientTileId ?? (seedKey ? `tile-${seedKey}` : null) ?? inferredTileId,
+      categorySlug,
       name: expense.name,
       ...(expense.note ? { note: expense.note } : {}),
       ...(expense.merchant ? { merchant: expense.merchant } : {}),
