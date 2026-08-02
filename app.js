@@ -8,6 +8,7 @@ import { StatusCodes } from 'http-status-codes';
 
 import env from './config/env.js';
 import authRoutes from './routes/auth.routes.js';
+import expenseRoutes from './routes/expense.routes.js';
 import uploadRoutes from './routes/upload.routes.js';
 import notFound from './middlewares/notFound.js';
 import globalErrorHandler from './middlewares/globalErrorHandler.js';
@@ -56,9 +57,9 @@ app.get('/health', (req, res) => {
 });
 
 // ── Routes ─────────────────────────────────────────────────────────────────
-// The remaining feature routers (tiles, expenses, dashboard, habits, insights,
-// budgets, history, recurring) mount here once the models are signed off.
+// Feature routes.
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/expenses', expenseRoutes);
 app.use('/api/v1/uploads', uploadRoutes);
 
 app.use(notFound);
