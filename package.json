@@ -1,12 +1,12 @@
 {
   "name": "tally-backend",
   "version": "0.1.0",
-  "description": "Tally — one-tap expense tracker API. Express + MongoDB + Gemini.",
+  "description": "Tally \u2014 one-tap expense tracker API. Express + MongoDB + Gemini.",
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
+    "dev": "node init && nodemon server.js",
+    "start": "node init && node server.js",
     "seed": "node scripts/seed.js",
     "test": "node --test"
   },
